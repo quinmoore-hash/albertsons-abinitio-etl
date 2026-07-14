@@ -34,12 +34,17 @@ SPARK_SUBMIT = os.environ.get("SPARK_SUBMIT", "spark-submit")
 ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "store-data-ops@albertsons.com")
 ALERT_CHANNEL = os.environ.get("ALERT_SLACK_CHANNEL", "#store-data-ops")
 
-# BUSINESS_DATE rendered per run: dag_run.conf override, else the day before the
-# logical date (matching "defaults to yesterday").
+# BUSINESS_DATE rendered per run. We read from ``params.business_date`` (which is
+# schema-validated against BUSINESS_DATE_PATTERN, so a triggering user cannot
+# inject shell metacharacters into the BashOperator commands below) and fall
+# back to the run's logical date. For a daily ``30 2 * * *`` schedule Airflow's
+# ``ds`` is the data_interval_start, which already equals "yesterday" relative to
+# the 02:30 execution time -- matching the plan's "defaults to yesterday" -- so
+# no extra day offset is applied.
+BUSINESS_DATE_PATTERN = r"^\d{8}$"
 BUSINESS_DATE = (
-    "{{ dag_run.conf.get('business_date') "
-    "if dag_run and dag_run.conf.get('business_date') "
-    "else macros.ds_format(macros.ds_add(ds, -1), '%Y-%m-%d', '%Y%m%d') }}"
+    "{{ params.business_date if params.business_date "
+    "else macros.ds_format(ds, '%Y-%m-%d', '%Y%m%d') }}"
 )
 
 
@@ -97,7 +102,8 @@ with DAG(
         "business_date": Param(
             default=None,
             type=["null", "string"],
-            description="BUSINESS_DATE in YYYYMMDD; defaults to the run's previous day.",
+            pattern=BUSINESS_DATE_PATTERN,
+            description="BUSINESS_DATE in YYYYMMDD; defaults to the run's logical date.",
         ),
     },
     tags=["albertsons", "etl", "migration"],

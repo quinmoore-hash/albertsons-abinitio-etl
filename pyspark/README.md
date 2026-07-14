@@ -101,8 +101,10 @@ Load modes preserve the legacy behavior:
 
 * Dependency chain `daily_pos_sales >> inventory_snapshot >> dq_check`.
 * Cron schedule `30 2 * * *`.
-* `BUSINESS_DATE` parameterised (`dag_run.conf['business_date']`, else the run's
-  previous day in `YYYYMMDD`).
+* `BUSINESS_DATE` parameterised via a schema-validated `Param`
+  (`^\d{8}$`, so triggering users can't inject shell metacharacters into the
+  `BashOperator` commands), defaulting to the run's logical date (`ds`) in
+  `YYYYMMDD` — which for the `30 2 * * *` schedule is "yesterday" at execution.
 * An `on_failure_callback` equivalent to `run/notify.ksh` (email +
   `SLACK_WEBHOOK_URL` post to `#store-data-ops`).
 
