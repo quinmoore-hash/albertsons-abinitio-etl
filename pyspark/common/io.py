@@ -81,15 +81,16 @@ def write_delimited(
         .csv(tmp_dir)
     )
 
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+
     part_files = sorted(glob.glob(os.path.join(tmp_dir, "part-*")))
     if not part_files:
         # No rows written: Spark may still emit an empty part file, but guard
         # against a completely empty directory by creating an empty target.
         open(path, "w").close()
     else:
-        parent = os.path.dirname(path)
-        if parent:
-            os.makedirs(parent, exist_ok=True)
         # Concatenate the (single, since coalesced) part file(s) to the target.
         with open(path, "wb") as out:
             for pf in part_files:
