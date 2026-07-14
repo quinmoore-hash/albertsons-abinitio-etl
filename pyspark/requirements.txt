@@ -1,0 +1,9 @@
+pyspark==3.5.1
+pytest==8.2.2
+
+# Orchestration (only needed to run/validate the Airflow DAG, not the jobs/tests).
+# apache-airflow==2.9.2
+
+# Oracle JDBC load (m_db equivalent) requires the Oracle JDBC driver on the
+# Spark classpath, e.g. via:
+#   spark-submit --packages com.oracle.database.jdbc:ojdbc8:21.9.0.0 ...
