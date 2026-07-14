@@ -1,0 +1,60 @@
+/* ============================================================
+ * sales_rollup.xfr
+ * ROLLUP transform for daily_pos_sales.mp.
+ * Key: business_date, store_id, department, category (set on the
+ * ROLLUP component's key parameter).
+ * Aggregates cleansed + dimension-joined sale lines into the
+ * daily_sales_summary grain.
+ * ============================================================ */
+
+temporary_type temp_t =
+  record
+    decimal("") txn_count;
+    decimal("") unit_qty;
+    decimal("") gross_sales;
+    decimal("") discount_total;
+    decimal("") private_label_sales;
+    decimal("") loyalty_txn_count;
+  end;
+
+temp :: initialize(in) =
+begin
+  temp.txn_count           :: 0;
+  temp.unit_qty            :: 0;
+  temp.gross_sales         :: 0;
+  temp.discount_total      :: 0;
+  temp.private_label_sales :: 0;
+  temp.loyalty_txn_count   :: 0;
+end;
+
+temp :: rollup(temp, in) =
+begin
+  /* count_distinct(transaction_id) is approximated at line grain;
+     the register feed emits one line per scanned item */
+  temp.txn_count           :: temp.txn_count + 1;
+  temp.unit_qty            :: temp.unit_qty + in.qty;
+  temp.gross_sales         :: temp.gross_sales + in.ext_price;
+  temp.discount_total      :: temp.discount_total + in.discount_amt;
+  temp.private_label_sales :: temp.private_label_sales +
+                                ((in.private_label_flag == "Y")
+                                   ? (in.ext_price - in.discount_amt) : 0);
+  temp.loyalty_txn_count   :: temp.loyalty_txn_count +
+                                (is_blank(in.loyalty_id) ? 0 : 1);
+end;
+
+out :: finalize(temp, in) =
+begin
+  out.business_date        :: in.business_date;
+  out.store_id             :: in.store_id;
+  out.banner               :: in.banner;
+  out.region               :: in.region;
+  out.department           :: in.department;
+  out.category             :: in.category;
+  out.txn_count            :: temp.txn_count;
+  out.unit_qty             :: temp.unit_qty;
+  out.gross_sales          :: decimal_round(temp.gross_sales, 2);
+  out.discount_total       :: decimal_round(temp.discount_total, 2);
+  out.net_sales            :: decimal_round(temp.gross_sales - temp.discount_total, 2);
+  out.private_label_sales  :: decimal_round(temp.private_label_sales, 2);
+  out.loyalty_txn_count    :: temp.loyalty_txn_count;
+end;

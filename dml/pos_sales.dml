@@ -1,0 +1,22 @@
+/* ============================================================
+ * pos_sales.dml
+ * Record format for raw Point-of-Sale transaction feed.
+ * Source: store register extract, delimited flat file.
+ * Feed  : POS_SALES_YYYYMMDD.dat  (pipe-delimited, newline terminated)
+ * ============================================================ */
+record
+  decimal(",") store_id;              /* Albertsons store number          */
+  decimal(",") register_id;           /* register / lane number           */
+  string(",")  transaction_id;        /* POS transaction identifier       */
+  date("YYYY-MM-DD")(",") business_date;
+  string(",")  transaction_ts;        /* raw timestamp, HH:MM:SS local    */
+  decimal(",") upc;                   /* scanned item UPC                 */
+  string(",")  product_desc;          /* register description             */
+  decimal(",") qty;                   /* units sold (may be negative)     */
+  decimal(",") unit_price;            /* shelf price at scan              */
+  decimal(",") ext_price;             /* qty * unit_price before discount */
+  decimal(",") discount_amt;          /* coupon / loyalty discount        */
+  string(",")  loyalty_id;            /* "just for U" member id, nullable */
+  string(",")  tender_type;           /* CASH | CREDIT | DEBIT | EBT      */
+  string("\n") void_flag;             /* Y when line voided               */
+end;

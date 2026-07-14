@@ -1,0 +1,21 @@
+/* ============================================================
+ * daily_sales_summary.dml
+ * Target record format for the aggregated daily sales fact.
+ * Grain: business_date x store_id x department x category.
+ * Loaded into EDW table EDW.F_DAILY_SALES_SUMMARY.
+ * ============================================================ */
+record
+  date("YYYY-MM-DD")("|") business_date;
+  decimal("|") store_id;
+  string("|")  banner;
+  string("|")  region;
+  string("|")  department;
+  string("|")  category;
+  decimal("|") txn_count;              /* distinct transactions           */
+  decimal("|") unit_qty;               /* total units sold                */
+  decimal("|") gross_sales;            /* sum ext_price                   */
+  decimal("|") discount_total;         /* sum discount_amt                */
+  decimal("|") net_sales;              /* gross_sales - discount_total    */
+  decimal("|") private_label_sales;    /* net_sales where PL flag = Y     */
+  decimal("\n") loyalty_txn_count;     /* txns tied to a loyalty id       */
+end;

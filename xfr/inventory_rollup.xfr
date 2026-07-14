@@ -1,0 +1,40 @@
+/* ============================================================
+ * inventory_rollup.xfr
+ * ROLLUP transform for inventory_snapshot.mp.
+ * Key: store_id, department.
+ * ============================================================ */
+
+temporary_type temp_t =
+  record
+    decimal("") sku_count;
+    decimal("") on_hand_units;
+    decimal("") cost_value;
+    decimal("") retail_value;
+  end;
+
+temp :: initialize(in) =
+begin
+  temp.sku_count     :: 0;
+  temp.on_hand_units :: 0;
+  temp.cost_value    :: 0;
+  temp.retail_value  :: 0;
+end;
+
+temp :: rollup(temp, in) =
+begin
+  temp.sku_count     :: temp.sku_count + 1;
+  temp.on_hand_units :: temp.on_hand_units + in.on_hand_qty;
+  temp.cost_value    :: temp.cost_value   + (in.on_hand_qty * in.avg_cost);
+  temp.retail_value  :: temp.retail_value + (in.on_hand_qty * in.retail_price);
+end;
+
+out :: finalize(temp, in) =
+begin
+  out.snapshot_date  :: in.snapshot_date;
+  out.store_id       :: in.store_id;
+  out.department     :: in.department;
+  out.sku_count      :: temp.sku_count;
+  out.on_hand_units  :: temp.on_hand_units;
+  out.cost_value     :: decimal_round(temp.cost_value, 2);
+  out.retail_value   :: decimal_round(temp.retail_value, 2);
+end;

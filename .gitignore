@@ -1,0 +1,15 @@
+# Ab Initio transient data lifecycle
+data/serial/*.dat
+!data/serial/product_dim.dat
+!data/serial/store_dim.dat
+data/mfs/
+data/out/
+logs/
+
+# credential material (never commit real secrets)
+dbc/*.dbc.local
+*.pwd
+
+# editor / OS
+.DS_Store
+*.swp

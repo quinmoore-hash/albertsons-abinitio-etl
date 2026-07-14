@@ -1,0 +1,43 @@
+/* ============================================================
+ * pos_sales_cleanse.xfr
+ * Transform used by the REFORMAT component in daily_pos_sales.mp.
+ * Cleanses raw POS lines: drops voids, normalizes tender,
+ * recomputes extended price, and fills nulls.
+ * ============================================================ */
+
+/* Reject voided lines and zero-qty scans upstream via select_expr;
+ * this transform assumes only valid lines arrive. */
+
+out::reformat(in) =
+begin
+  out.store_id        :: in.store_id;
+  out.register_id     :: in.register_id;
+  out.transaction_id  :: string_lrtrim(in.transaction_id);
+  out.business_date   :: in.business_date;
+
+  /* unit price defaults to 0 when the register feed omits it */
+  out.unit_price      :: is_null(in.unit_price) ? 0 : in.unit_price;
+  out.qty             :: in.qty;
+
+  /* trust the register ext_price only when it reconciles, else recompute */
+  out.ext_price       :: (decimal_round(in.qty * in.unit_price, 2) == in.ext_price)
+                           ? in.ext_price
+                           : decimal_round(in.qty * in.unit_price, 2);
+
+  out.discount_amt    :: is_null(in.discount_amt) ? 0 : in.discount_amt;
+
+  /* normalize tender codes coming from mixed register firmware */
+  out.tender_type     :: (string_upcase(string_lrtrim(in.tender_type)) == "CC")
+                           ? "CREDIT"
+                           : string_upcase(string_lrtrim(in.tender_type));
+
+  out.loyalty_id      :: string_lrtrim(in.loyalty_id);
+  out.upc             :: in.upc;
+  out.product_desc    :: string_lrtrim(in.product_desc);
+end;
+
+/* select_expr wired on the REFORMAT: keep only real sale lines */
+out :: is_valid_line(in) =
+begin
+  out :: (in.void_flag != "Y") && (in.qty != 0);
+end;

@@ -1,0 +1,18 @@
+;;; ============================================================
+;;; edw.dbc  -  Ab Initio database configuration
+;;; Target: Enterprise Data Warehouse (Oracle).
+;;; Credentials are resolved at runtime from dbc/edw.dbc.env.
+;;; ============================================================
+dbms:                oracle
+db_version:          19c
+db_home:             ${ORACLE_HOME}
+db_name:             EDWPRD
+db_nodes:            edw-scan.albertsons.internal
+db_port:             1521
+db_service:          EDWPRD.albertsons.internal
+db_user:             ${EDW_DB_USER}
+db_password:         ${EDW_DB_PASSWORD}
+db_default_schema:   EDW
+db_character_set:    AL32UTF8
+db_array_size:       5000
+db_commit_interval:  50000

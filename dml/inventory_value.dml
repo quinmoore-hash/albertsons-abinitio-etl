@@ -1,0 +1,14 @@
+/* ============================================================
+ * inventory_value.dml
+ * Target: on-hand inventory value per store x department.
+ * Loaded into EDW.F_INVENTORY_VALUE.
+ * ============================================================ */
+record
+  date("YYYY-MM-DD")("|") snapshot_date;
+  decimal("|") store_id;
+  string("|")  department;
+  decimal("|") sku_count;                /* distinct items on hand        */
+  decimal("|") on_hand_units;            /* total units                   */
+  decimal("|") cost_value;               /* sum(on_hand * avg_cost)       */
+  decimal("\n") retail_value;            /* sum(on_hand * retail_price)   */
+end;

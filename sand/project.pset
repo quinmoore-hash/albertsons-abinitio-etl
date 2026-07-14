@@ -1,0 +1,9 @@
+#############################################################################
+# project.pset  -  Ab Initio project parameter set (common/public params)
+# Sourced by all deployed scripts to resolve PROJECT_DIR and friends.
+#############################################################################
+export PROJECT_NAME=albertsons-abinitio-etl
+export PROJECT_DIR=${PROJECT_DIR:-$(cd "$(dirname "${.sh.file:-$0}")/.." && pwd)}
+export AB_HOME=${AB_HOME:-/opt/abinitio/abinitio-V4}
+export AB_AIR_ROOT=${AB_AIR_ROOT:-//eme.albertsons.internal:/eme/albertsons-abinitio-etl}
+export AB_DATA_DIR=$PROJECT_DIR/data

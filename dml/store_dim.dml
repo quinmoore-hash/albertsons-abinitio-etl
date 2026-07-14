@@ -1,0 +1,13 @@
+/* ============================================================
+ * store_dim.dml
+ * Store dimension lookup (banner, region, timezone).
+ * ============================================================ */
+record
+  decimal(",") store_id;
+  string(",")  store_name;
+  string(",")  banner;                 /* ALBERTSONS | SAFEWAY | VONS ... */
+  string(",")  region;
+  string(",")  state;
+  string(",")  timezone;
+  string("\n") status;                 /* OPEN | CLOSED | REMODEL         */
+end;

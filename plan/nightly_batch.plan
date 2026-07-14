@@ -1,0 +1,47 @@
+;;; ============================================================
+;;; nightly_batch.plan
+;;; Ab Initio Conduct>It plan (checked-in text form).
+;;; Orchestrates the nightly Albertsons retail batch.
+;;;   START -> daily_pos_sales -> inventory_snapshot -> dq_check -> END
+;;; Cron: 30 2 * * *   (02:30 local, after store close feeds land)
+;;; ============================================================
+
+plan nightly_batch
+
+  parameter BUSINESS_DATE = "${BUSINESS_DATE}"     ;; YYYYMMDD, defaults to yesterday
+
+  task START
+    type = trigger
+
+  task daily_pos_sales
+    type    = program
+    program = "$PROJECT_DIR/run/daily_pos_sales.ksh"
+    args    = "${BUSINESS_DATE}"
+    on-failure = alert_store_data_ops
+
+  task inventory_snapshot
+    type    = program
+    program = "$PROJECT_DIR/run/inventory_snapshot.ksh"
+    args    = "${BUSINESS_DATE}"
+    on-failure = alert_store_data_ops
+
+  task dq_check
+    type    = program
+    program = "$PROJECT_DIR/run/dq_check.ksh"
+    args    = "${BUSINESS_DATE}"
+    on-failure = alert_store_data_ops
+
+  task END
+    type = terminal
+
+  ;; dependencies
+  depends daily_pos_sales   on START
+  depends inventory_snapshot on daily_pos_sales
+  depends dq_check          on inventory_snapshot
+  depends END               on dq_check
+
+  method alert_store_data_ops
+    program = "$PROJECT_DIR/run/notify.ksh"
+    args    = "store-data-ops@albertsons.com #store-data-ops"
+
+end plan

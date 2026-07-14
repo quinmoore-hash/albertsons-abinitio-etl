@@ -1,0 +1,29 @@
+/* ============================================================
+ * dim_join.xfr
+ * JOIN transform for daily_pos_sales.mp.
+ * Inner-joins cleansed sales (in0) to product_dim (in1) on upc,
+ * and to store_dim (in2) on store_id.  Unmatched UPCs fall through
+ * to the "unused" port and are written to the reject file.
+ * ============================================================ */
+
+out::join(in0, in1, in2) =
+begin
+  out.business_date       :: in0.business_date;
+  out.store_id            :: in0.store_id;
+  out.transaction_id      :: in0.transaction_id;
+  out.qty                 :: in0.qty;
+  out.ext_price           :: in0.ext_price;
+  out.discount_amt        :: in0.discount_amt;
+  out.loyalty_id          :: in0.loyalty_id;
+  out.upc                 :: in0.upc;
+
+  /* product dimension attributes */
+  out.department          :: in1.department;
+  out.category            :: in1.category;
+  out.brand               :: in1.brand;
+  out.private_label_flag  :: in1.private_label_flag;
+
+  /* store dimension attributes */
+  out.banner              :: in2.banner;
+  out.region              :: in2.region;
+end;

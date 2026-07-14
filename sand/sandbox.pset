@@ -1,0 +1,16 @@
+#############################################################################
+# sandbox.pset  -  Ab Initio sandbox parameters (local/private params)
+# Maps the logical project directories to on-disk paths.
+#############################################################################
+export AI_SERIAL=$PROJECT_DIR/data/serial
+export AI_MFS=$PROJECT_DIR/data/mfs
+export AI_RUN=$PROJECT_DIR/run
+export AI_DML=$PROJECT_DIR/dml
+export AI_XFR=$PROJECT_DIR/xfr
+export AI_MP=$PROJECT_DIR/mp
+export AI_DBC=$PROJECT_DIR/dbc
+
+# Data-quality / alerting thresholds honored by the plan
+export DQ_MAX_REJECT_PCT=2.0
+export DQ_MIN_ROWCOUNT=1000
+export ROWCOUNT_DEVIATION_PCT=25.0

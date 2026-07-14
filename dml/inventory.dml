@@ -1,0 +1,15 @@
+/* ============================================================
+ * inventory.dml
+ * Nightly on-hand inventory extract (per store / per item).
+ * Feed: INVENTORY_YYYYMMDD.dat (pipe-delimited).
+ * ============================================================ */
+record
+  decimal("|") store_id;
+  string("|")  store_status;            /* OPEN | CLOSED | REMODEL       */
+  decimal("|") upc;
+  string("|")  department;
+  decimal("|") on_hand_qty;
+  decimal("|") avg_cost;                /* per-unit average cost         */
+  decimal("|") retail_price;            /* per-unit shelf price          */
+  date("YYYY-MM-DD")("\n") snapshot_date;
+end;

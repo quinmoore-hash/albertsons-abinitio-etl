@@ -1,0 +1,15 @@
+/* ============================================================
+ * product_dim.dml
+ * Product dimension lookup, sourced nightly from the MDM export.
+ * Loaded into a lookup file and referenced by UPC.
+ * ============================================================ */
+record
+  decimal(",") upc;
+  string(",")  product_desc;
+  string(",")  department;             /* GROCERY | PRODUCE | DAIRY | ... */
+  string(",")  category;
+  string(",")  brand;
+  string(",")  private_label_flag;     /* Y for Signature/O Organics etc. */
+  decimal(",") case_pack;
+  decimal("\n") avg_cost;              /* current average cost            */
+end;
