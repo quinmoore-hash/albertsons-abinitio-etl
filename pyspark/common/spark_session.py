@@ -1,25 +1,27 @@
 """SparkSession builder shared by the migration jobs and the test suite.
 
 Keeps configuration in one place so the jobs, the DQ gate and pytest all use a
-consistent, deterministic session (single shuffle partition locally, legacy
-date parsing disabled, decimals preserved).
+consistent session (legacy date parsing disabled, UTC time zone, decimals
+preserved).
+
+Note on parallelism: production jobs do NOT pin ``spark.sql.shuffle.partitions``
+so they inherit the cluster / ``spark-submit --conf`` setting and can scale to
+real nightly volumes. Byte-identical output is guaranteed by the explicit
+``orderBy`` in each job plus the ``coalesce(1)`` in ``write_delimited`` -- not by
+running single-threaded. The test suite passes ``shuffle_partitions="1"`` for
+deterministic, fast local runs.
 """
 
 from __future__ import annotations
 
 from pyspark.sql import SparkSession
 
-# Default local shuffle partition count. The nightly volumes are modest and a
-# single partition keeps output deterministic (stable ordering) for the
-# byte-identical parity comparison against the Ab Initio graphs.
-DEFAULT_SHUFFLE_PARTITIONS = "1"
-
 
 def build_spark(
     app_name: str = "albertsons-etl",
     *,
     master: str | None = None,
-    shuffle_partitions: str = DEFAULT_SHUFFLE_PARTITIONS,
+    shuffle_partitions: str | None = None,
     extra_conf: dict[str, str] | None = None,
 ) -> SparkSession:
     """Build (or fetch) a configured :class:`SparkSession`.
@@ -33,7 +35,9 @@ def build_spark(
         master from ``spark-submit`` / the environment, which is what the
         production submit command relies on. Tests pass ``local[1]``.
     shuffle_partitions:
-        ``spark.sql.shuffle.partitions`` value.
+        Optional ``spark.sql.shuffle.partitions`` override. When ``None`` (the
+        production default) the value is left unset so Spark follows the
+        cluster / ``spark-submit`` configuration. Tests pass ``"1"``.
     extra_conf:
         Additional Spark configuration entries.
     """
@@ -42,9 +46,11 @@ def build_spark(
     if master:
         builder = builder.master(master)
 
+    if shuffle_partitions is not None:
+        builder = builder.config("spark.sql.shuffle.partitions", shuffle_partitions)
+
     builder = (
         builder
-        .config("spark.sql.shuffle.partitions", shuffle_partitions)
         # Match the exact yyyy-MM-dd parsing/formatting of the feeds.
         .config("spark.sql.session.timeZone", "UTC")
         # CORRECTED parser so out-of-range dates fail loudly rather than silently

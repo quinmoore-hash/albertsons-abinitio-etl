@@ -45,12 +45,17 @@ def filter_active(inventory: DataFrame) -> DataFrame:
 def rollup_inventory(active: DataFrame) -> DataFrame:
     """Aggregate active inventory to the inventory_value grain.
 
-    Grain: ``store_id, department`` (``snapshot_date`` is carried through).
+    Grain: ``store_id, department`` (matching the Ab Initio ROLLUP key in
+    ``xfr/inventory_rollup.xfr``). ``snapshot_date`` is not part of the key; it
+    is carried through via ``first`` (the legacy ``finalize`` copies it from a
+    group record), so a normal single-date nightly feed yields one row per
+    store/department rather than one per distinct date.
     """
     grouped = (
         active
-        .groupBy("store_id", "department", "snapshot_date")
+        .groupBy("store_id", "department")
         .agg(
+            F.first("snapshot_date").alias("snapshot_date"),
             F.count(F.lit(1)).cast(DecimalType(18, 0)).alias("sku_count"),
             F.sum("on_hand_qty").cast(DecimalType(18, 0)).alias("on_hand_units"),
             F.round(F.sum(F.col("on_hand_qty") * F.col("avg_cost")), 2)

@@ -17,6 +17,7 @@ Exit codes match the legacy script:
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import sys
 from dataclasses import dataclass
@@ -59,7 +60,9 @@ def check_dq(
     rejects = _count_lines(reject_path)
 
     total = rows + rejects
-    reject_pct = round(rejects * 100 / total, 2) if total > 0 else 0.0
+    # Truncate to 2 decimals (toward zero) to match the legacy ksh gate, which
+    # uses `bc scale=2` (truncation, not rounding) in run/dq_check.ksh.
+    reject_pct = math.floor(rejects * 100 / total * 100) / 100 if total > 0 else 0.0
 
     if rows < min_rowcount:
         return DQResult(

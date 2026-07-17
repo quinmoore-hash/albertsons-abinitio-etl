@@ -30,7 +30,10 @@ from common.spark_session import build_spark  # noqa: E402
 @pytest.fixture(scope="session")
 def spark():
     """Session-scoped local SparkSession for the whole test run."""
-    session = build_spark("albertsons-etl-tests", master="local[1]")
+    # Pin a single shuffle partition for deterministic, fast local test runs.
+    session = build_spark(
+        "albertsons-etl-tests", master="local[1]", shuffle_partitions="1"
+    )
     yield session
     session.stop()
 
