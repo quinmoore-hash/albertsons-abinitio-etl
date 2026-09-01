@@ -67,6 +67,28 @@ def test_unknown_upc_is_rejected(spark, business_date):
     assert summary.filter("store_id = 3300").count() == 1
 
 
+def test_dimension_row_with_null_attributes_still_matches(spark, business_date):
+    """Reject routing keys off the join key, not off nullable attributes."""
+    import schemas
+    from io_utils import read_delimited
+
+    pos = read_delimited(
+        spark, config.pos_input_file(business_date), schemas.pos_sales, config.POS_DELIMITER
+    ).filter("upc = 4011 and void_flag = 'N'")
+    product_dim = read_delimited(
+        spark, config.product_dim_file(), schemas.product_dim, config.DIM_DELIMITER
+    ).withColumn("department", daily_pos_sales.F.lit(None).cast("string"))
+    store_dim = read_delimited(
+        spark, config.store_dim_file(), schemas.store_dim, config.DIM_DELIMITER
+    )
+
+    matched, rejected = daily_pos_sales.join_dimensions(
+        daily_pos_sales.cleanse(pos), product_dim, store_dim
+    )
+    assert rejected.count() == 0
+    assert matched.count() == 1
+
+
 def test_tender_normalization_maps_cc_to_credit(spark, business_date):
     pos = daily_pos_sales.read_delimited(
         spark, config.pos_input_file(business_date), daily_pos_sales.schemas.pos_sales, config.POS_DELIMITER

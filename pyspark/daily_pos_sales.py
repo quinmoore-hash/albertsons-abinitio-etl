@@ -75,16 +75,23 @@ def join_dimensions(
             F.col("category"),
             F.col("brand"),
             F.col("private_label_flag"),
+            F.lit(True).alias("_product_matched"),
         ),
         on="upc",
         how="left",
     ).join(
-        store_dim.select(F.col("store_id"), F.col("banner"), F.col("region")),
+        store_dim.select(
+            F.col("store_id"),
+            F.col("banner"),
+            F.col("region"),
+            F.lit(True).alias("_store_matched"),
+        ),
         on="store_id",
         how="left",
     )
 
-    unmatched = F.col("department").isNull() | F.col("banner").isNull()
+    # Key presence, not attribute nullability, decides the reject routing.
+    unmatched = F.col("_product_matched").isNull() | F.col("_store_matched").isNull()
 
     rejected = joined.filter(unmatched).select(
         *[F.col(field.name) for field in schemas.pos_sales.fields]

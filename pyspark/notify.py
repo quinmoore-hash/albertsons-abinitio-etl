@@ -48,10 +48,7 @@ def send_slack(body: str, channel: str = DEFAULT_CHANNEL) -> None:
     request = urllib.request.Request(
         webhook, data=payload, headers={"Content-type": "application/json"}
     )
-    try:
-        urllib.request.urlopen(request, timeout=10).close()
-    except Exception as exc:  # notification failures never fail the batch
-        print(f"[notify] slack post failed: {exc}")
+    urllib.request.urlopen(request, timeout=10).close()
 
 
 def alert_store_data_ops(context: dict | None = None) -> None:
@@ -61,5 +58,10 @@ def alert_store_data_ops(context: dict | None = None) -> None:
         task_instance = context.get("task_instance")
         task_id = getattr(task_instance, "task_id", None)
     body = build_body(task_id)
-    send_email(body)
-    send_slack(body)
+    # Each transport is independent: a mail outage must not swallow the Slack
+    # alert (and neither may fail the batch), as in notify.ksh.
+    for transport in (send_email, send_slack):
+        try:
+            transport(body)
+        except Exception as exc:  # noqa: BLE001 - notifications never fail the batch
+            print(f"[notify] {transport.__name__} failed: {exc}")
