@@ -1,0 +1,14 @@
+# PySpark port of the Ab Initio batch (see pyspark/README.md).
+pyspark==3.5.1
+apache-airflow==2.9.3
+
+# Oracle EDW load.
+# Spark talks to Oracle through the JDBC driver jar, not a Python driver:
+# download ojdbc8.jar (Oracle 19c) and pass it via
+#   spark-submit --jars /path/to/ojdbc8.jar
+# or set ORACLE_JDBC_JAR for the Airflow DAG. The package below is only needed
+# for the Airflow Oracle connection/hook used by operational tooling.
+apache-airflow-providers-oracle==3.10.0
+
+# Tests
+pytest==8.2.2
