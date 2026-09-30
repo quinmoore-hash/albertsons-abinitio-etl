@@ -1,0 +1,25 @@
+[project]
+name = "albertsons-spark-etl"
+version = "0.1.0"
+description = "PySpark port of the Albertsons Ab Initio nightly batch"
+requires-python = ">=3.10"
+dependencies = ["pyspark>=4.0.1,<4.1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9", "ruff>=0.11,<0.12"]
+
+[tool.setuptools.packages.find]
+include = ["spark*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
