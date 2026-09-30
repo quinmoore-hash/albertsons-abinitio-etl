@@ -13,3 +13,13 @@ dbc/*.dbc.local
 # editor / OS
 .DS_Store
 *.swp
+
+# python / spark
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+spark-warehouse/
+metastore_db/
+derby.log

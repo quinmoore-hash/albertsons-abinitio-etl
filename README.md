@@ -1,10 +1,14 @@
 # albertsons-abinitio-etl
 
-Legacy **Ab Initio** batch ETL for Albertsons retail analytics. This is the
-*original* codebase slated for migration to **PySpark**. It intentionally
-uses the classic Ab Initio artifact layout (graphs, DML, XFR, DBC, sandbox
-parameters, and a Conduct>It plan) so the migration can be demonstrated
-end to end.
+Batch ETL for Albertsons retail analytics, migrated from **Ab Initio** to
+**PySpark**. The PySpark implementation lives in `spark/` (jobs, transforms,
+schemas) with an Airflow DAG in `dags/`.
+
+> **The Ab Initio artifacts (`mp/`, `xfr/`, `dml/`, `plan/`, `run/`, `dbc/`,
+> `sand/`) are superseded by the PySpark package.** They are kept in place,
+> unchanged, as the reference for parity verification and will be removed in
+> a follow-up once the PySpark jobs are signed off in production. `sand/*.pset`
+> and `dbc/edw.dbc` are still read by the PySpark config/JDBC layer.
 
 > Scope: two nightly pipelines feeding the Enterprise Data Warehouse (EDW):
 > daily POS sales aggregation and an on-hand inventory valuation snapshot.
@@ -47,7 +51,99 @@ followed by a data-quality gate (`run/dq_check.ksh`).
 | `plan/` | Conduct>It plan         | Nightly orchestration + dependencies |
 | `data/` | Staging                 | `in/` feeds, `serial/` dims, `out/` results (sample data included) |
 
-## Running locally (demo)
+## PySpark (current)
+
+### Package layout
+
+| Path | Replaces | Purpose |
+|------|----------|---------|
+| `spark/schemas.py` | `dml/*.dml` | Explicit `StructType` per record format (names, decimal precision, nullability) |
+| `spark/common/config.py`, `pset.py` | `sand/*.pset` | `BatchConfig`: paths, `BUSINESS_DATE`, DQ thresholds |
+| `spark/common/jdbc.py` | `dbc/edw.dbc`, `m_db load` | Oracle JDBC read/write (`append` / `truncate`) |
+| `spark/common/notify.py` | `run/notify.ksh` | Failure email (`mailx`) + Slack webhook |
+| `spark/transforms/pos_sales_cleanse.py` | `xfr/pos_sales_cleanse.xfr` | REFORMAT cleanse |
+| `spark/transforms/dim_join.py` | `xfr/dim_join.xfr` | Broadcast dim join + unused-port rejects |
+| `spark/transforms/sales_rollup.py` | `xfr/sales_rollup.xfr` | Daily sales ROLLUP |
+| `spark/transforms/inventory_rollup.py` | `xfr/inventory_rollup.xfr` | Active-store filter + inventory ROLLUP |
+| `spark/jobs/daily_pos_sales.py` | `mp/daily_pos_sales.mp`, `run/daily_pos_sales.ksh` | Job -> `EDW.F_DAILY_SALES_SUMMARY` |
+| `spark/jobs/inventory_snapshot.py` | `mp/inventory_snapshot.mp`, `run/inventory_snapshot.ksh` | Job -> `EDW.F_INVENTORY_VALUE` |
+| `spark/jobs/dq_check.py` | `run/dq_check.ksh` | Row-count / reject-% gate (exit 2 / 3 on failure) |
+| `dags/nightly_batch.py` | `plan/nightly_batch.plan` | Airflow DAG `START -> daily_pos_sales -> inventory_snapshot -> dq_check -> END`, `30 2 * * *` |
+
+### Setup
+
+Requires Python 3.10+ and Java 17+.
+
+```sh
+python -m venv .venv && . .venv/bin/activate
+pip install -e '.[dev]'
+```
+
+### Running the jobs
+
+Every job takes `BUSINESS_DATE` (`YYYYMMDD`, default: yesterday) and sources
+`sand/project.pset` + `sand/sandbox.pset` from `--project-dir` (default: repo
+root). Any pset parameter can be overridden with `--param NAME=VALUE`, and
+extra pset files layered on with `--pset FILE`.
+
+```sh
+# files only (data/out/...), no EDW load
+python -m spark.jobs.daily_pos_sales    20260713 --skip-load
+python -m spark.jobs.inventory_snapshot 20260713 --skip-load
+
+# DQ gate; the sample data is far below the production minimums
+# (DQ_MIN_ROWCOUNT=1000, DQ_MAX_REJECT_PCT=2.0), so relax them for the demo
+python -m spark.jobs.dq_check 20260713 --param DQ_MIN_ROWCOUNT=5 --param DQ_MAX_REJECT_PCT=20
+python -m spark.jobs.dq_check 20260713 --notify   # production thresholds; fails with exit 2 + alert
+```
+
+The same scripts run under `spark-submit`, e.g.
+`spark-submit spark/jobs/daily_pos_sales.py 20260713`.
+
+Outputs are Spark output directories, each holding a single delimited part
+file in the DML output format: `data/out/daily_sales_summary_<date>/`,
+`data/out/reject_<date>/` (the join's unused port: rows whose UPC or store has
+no dimension match; voids and zero-qty lines are dropped earlier by the
+cleanse), and `data/out/inventory_value_<date>/`.
+
+### EDW (Oracle) load
+
+Without `--skip-load` the jobs load EDW over JDBC using `dbc/edw.dbc`
+(`db_nodes`, `db_port`, `db_service`, schema `EDW`). Credentials come from the
+environment exactly as in `dbc/edw.dbc.env`; provide the Oracle driver via
+`EDW_JDBC_PACKAGES` (Maven coordinates) or `spark-submit --jars`.
+
+```sh
+export EDW_DB_USER=... EDW_DB_PASSWORD=...        # from the vault
+export EDW_JDBC_PACKAGES=com.oracle.database.jdbc:ojdbc11:23.5.0.24.07
+python -m spark.jobs.daily_pos_sales 20260713     # appends to EDW.F_DAILY_SALES_SUMMARY
+python -m spark.jobs.inventory_snapshot 20260713  # truncate + load EDW.F_INVENTORY_VALUE
+```
+
+### Airflow
+
+Point Airflow's `dags_folder` at `dags/` (or copy `dags/nightly_batch.py`).
+Environment knobs: `PROJECT_DIR` (repo checkout), `SPARK_SUBMIT`,
+`SPARK_SUBMIT_ARGS`, `NIGHTLY_BATCH_TZ`. Trigger params: `business_date`
+(override) and `skip_load`. Any task failure calls the `run/notify.ksh`
+equivalent (email `store-data-ops@albertsons.com`, Slack `#store-data-ops`).
+
+### Tests
+
+```sh
+pytest                      # unit tests per transform + 20260713 parity vs tests/expected/
+ruff check . && ruff format --check .
+```
+
+- `tests/test_parity_20260713.py` runs the full jobs on `data/in` + `data/serial`
+  and compares byte-for-byte with `tests/expected/` (void line dropped, UPC
+  `9999999999` in the reject file, store `4120` REMODEL excluded).
+- `tests/test_nightly_batch_dag.py` is skipped unless `apache-airflow` is installed.
+- `tests/test_edw_jdbc_integration.py` is skipped unless `EDW_IT_JDBC_URL`,
+  `EDW_IT_USER`, `EDW_IT_PASSWORD`, `EDW_IT_JDBC_JAR` point at an Oracle
+  schema with `F_DAILY_SALES_SUMMARY` / `F_INVENTORY_VALUE` tables.
+
+## Running the legacy Ab Initio graphs (superseded)
 
 The deployed `.ksh` scripts assume a Co>Operating System install
 (`m_dump`, `m_sort`, `m_join`, `m_rollup`, `m_db`). On a machine with
@@ -75,7 +171,7 @@ reject path.
 
 ## Migration notes (Ab Initio -> PySpark)
 
-Rough component mapping for the migration exercise:
+Component mapping used by the migration:
 
 | Ab Initio | PySpark equivalent |
 |-----------|--------------------|
