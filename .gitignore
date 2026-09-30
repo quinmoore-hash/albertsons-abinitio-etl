@@ -16,6 +16,7 @@ dbc/*.dbc.local
 
 # python / spark
 .venv/
+*.egg-info/
 __pycache__/
 *.pyc
 .pytest_cache/
