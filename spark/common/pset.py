@@ -10,7 +10,7 @@ executed; it is only allowed inside a ``:-`` default that is never needed.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, MutableMapping
+from collections.abc import Collection, Iterable, MutableMapping
 from pathlib import Path
 
 _ASSIGN = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
@@ -85,8 +85,14 @@ def _unquote(value: str) -> str:
     return value
 
 
-def source(path: str | Path, env: MutableMapping[str, str]) -> MutableMapping[str, str]:
-    """Apply every assignment in ``path`` to ``env`` (like ``. path`` in ksh)."""
+def source(
+    path: str | Path, env: MutableMapping[str, str], pinned: Collection[str] = ()
+) -> MutableMapping[str, str]:
+    """Apply every assignment in ``path`` to ``env`` (like ``. path`` in ksh).
+
+    Assignments to ``pinned`` names are skipped, so caller-supplied overrides
+    survive the file and are seen by every later expansion.
+    """
     for raw in Path(path).read_text().splitlines():
         line = _strip_comment(raw).strip()
         if not line:
@@ -95,6 +101,8 @@ def source(path: str | Path, env: MutableMapping[str, str]) -> MutableMapping[st
         if not match:
             continue
         name, value = match.groups()
+        if name in pinned:
+            continue
         literal = value.strip().startswith("'")
         value = _unquote(value)
         env[name] = value if literal else expand(value, env)

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from spark.common.jdbc import EdwConfigError, EdwJdbc, edw_from_project, parse_dbc
+from spark.common.jdbc import EdwConfigError, EdwJdbc, edw_from_dbc_dir, parse_dbc
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DBC = REPO_ROOT / "dbc" / "edw.dbc"
@@ -52,6 +52,6 @@ def test_qualify_and_modes(spark):
         edw.read(spark)
 
 
-def test_edw_from_project(monkeypatch):
+def test_edw_from_dbc_dir(monkeypatch):
     monkeypatch.setenv("EDW_DB_PASSWORD", "pw")
-    assert edw_from_project(REPO_ROOT).password == "pw"
+    assert edw_from_dbc_dir(REPO_ROOT / "dbc").password == "pw"

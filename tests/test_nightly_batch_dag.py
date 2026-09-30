@@ -40,6 +40,8 @@ def test_business_date_defaults_to_local_yesterday():
     run = datetime(2026, 7, 14, 8, 30, tzinfo=timezone.utc)  # 02:30 America/Boise
     assert nightly_batch.business_date({}, run) == "20260713"
     assert nightly_batch.business_date({"business_date": "20260101"}, run) == "20260101"
+    with pytest.raises(ValueError):
+        nightly_batch.business_date({"business_date": "20260101; rm -rf /"}, run)
 
 
 def test_spark_commands(dag):

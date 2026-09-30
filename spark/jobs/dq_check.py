@@ -14,8 +14,8 @@ import logging
 import sys
 from dataclasses import dataclass
 from decimal import ROUND_DOWN, Decimal
-from pathlib import Path
 
+from pyspark.errors import AnalysisException
 from pyspark.sql import SparkSession
 
 from spark.common.config import BatchConfig, build_parser
@@ -73,9 +73,12 @@ def evaluate(
 
 def _count(spark: SparkSession, path: str, record_format: RecordFormat) -> int:
     # m_wc -l on a missing file yields 0 in the ksh gate.
-    if not Path(path).exists():
-        return 0
-    return read_delimited(spark, path, record_format, strict=False).count()
+    try:
+        return read_delimited(spark, path, record_format, strict=False).count()
+    except AnalysisException as exc:
+        if exc.getCondition() == "PATH_NOT_FOUND":
+            return 0
+        raise
 
 
 def run(spark: SparkSession, cfg: BatchConfig) -> DQResult:

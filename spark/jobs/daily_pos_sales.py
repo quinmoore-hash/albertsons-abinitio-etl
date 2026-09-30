@@ -15,7 +15,7 @@ from pyspark.sql import DataFrame, SparkSession
 
 from spark.common.config import BatchConfig, build_parser
 from spark.common.io import read_delimited, write_delimited
-from spark.common.jdbc import edw_from_project
+from spark.common.jdbc import edw_from_dbc_dir
 from spark.common.session import create_spark_session
 from spark.schemas import DAILY_SALES_SUMMARY, POS_SALES, PRODUCT_DIM, STORE_DIM
 from spark.transforms.dim_join import join_dimensions
@@ -50,7 +50,7 @@ def build(spark: SparkSession, cfg: BatchConfig) -> tuple[DataFrame, DataFrame]:
 
 def load_to_edw(summary: DataFrame, cfg: BatchConfig) -> None:
     """``m_db load ... -table EDW.F_DAILY_SALES_SUMMARY -mode append``."""
-    edw_from_project(cfg.project_dir).write(summary, TARGET_TABLE, mode="append")
+    edw_from_dbc_dir(cfg.dbc_dir).write(summary, TARGET_TABLE, mode="append")
 
 
 def run(

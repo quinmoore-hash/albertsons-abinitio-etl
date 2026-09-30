@@ -147,6 +147,7 @@ class EdwJdbc:
         writer.save()
 
 
-def edw_from_project(project_dir: str | Path) -> EdwJdbc:
-    root = Path(project_dir)
-    return EdwJdbc.from_dbc(root / "dbc" / "edw.dbc", root / "dbc" / "edw.dbc.env")
+def edw_from_dbc_dir(dbc_dir: str | Path) -> EdwJdbc:
+    """``$AI_DBC/edw.dbc`` + ``$AI_DBC/edw.dbc.env``."""
+    root = Path(dbc_dir)
+    return EdwJdbc.from_dbc(root / "edw.dbc", root / "edw.dbc.env")

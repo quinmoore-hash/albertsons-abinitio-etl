@@ -15,7 +15,7 @@ from pyspark.sql import DataFrame, SparkSession
 
 from spark.common.config import BatchConfig, build_parser
 from spark.common.io import read_delimited, write_delimited
-from spark.common.jdbc import edw_from_project
+from spark.common.jdbc import edw_from_dbc_dir
 from spark.common.session import create_spark_session
 from spark.schemas import INVENTORY, INVENTORY_VALUE
 from spark.transforms.inventory_rollup import ROLLUP_KEY, filter_active, rollup_inventory
@@ -34,7 +34,7 @@ def build(spark: SparkSession, cfg: BatchConfig) -> DataFrame:
 
 def load_to_edw(inventory_value: DataFrame, cfg: BatchConfig) -> None:
     """``m_db load ... -table EDW.F_INVENTORY_VALUE -mode truncate``."""
-    edw_from_project(cfg.project_dir).write(inventory_value, TARGET_TABLE, mode="truncate")
+    edw_from_dbc_dir(cfg.dbc_dir).write(inventory_value, TARGET_TABLE, mode="truncate")
 
 
 def run(spark: SparkSession, cfg: BatchConfig, loader: Loader | None = load_to_edw) -> DataFrame:

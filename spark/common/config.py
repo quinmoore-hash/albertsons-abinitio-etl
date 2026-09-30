@@ -4,8 +4,11 @@ Resolution order mirrors the deployed ``run/*.ksh`` scripts:
 
 1. process environment (so scheduler/vault-injected values win for ``${X:-default}``)
 2. ``PROJECT_DIR`` (``--project-dir`` or repo root)
-3. ``sand/project.pset`` then ``sand/sandbox.pset`` (sourced in order)
-4. ``--param NAME=VALUE`` overrides (Ab Initio parameter overrides)
+3. ``sand/project.pset`` then ``sand/sandbox.pset``, then any ``--pset`` files
+   (sourced in order)
+4. ``--param NAME=VALUE`` overrides (Ab Initio parameter overrides); these are
+   pinned before sourcing, so parameters derived from them (e.g. ``AI_SERIAL``
+   from ``PROJECT_DIR``) pick them up too
 
 Paths follow the deployed scripts (``data/in`` feeds, ``$AI_SERIAL`` dims,
 ``data/out`` results) rather than the defaults embedded in the ``.mp`` files.
@@ -15,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -27,7 +31,12 @@ DEFAULT_PSETS = ("sand/project.pset", "sand/sandbox.pset")
 SPARK_CONF_PREFIX = "spark.albertsons."
 
 
+_YYYYMMDD = re.compile(r"\d{8}")
+
+
 def parse_business_date(value: str) -> date:
+    if not _YYYYMMDD.fullmatch(value):
+        raise ValueError(f"BUSINESS_DATE must be YYYYMMDD, got {value!r}")
     try:
         return datetime.strptime(value, "%Y%m%d").date()
     except ValueError as exc:
@@ -144,10 +153,11 @@ class BatchConfig:
         root = Path(project_dir or env.get("PROJECT_DIR") or REPO_ROOT).resolve()
         env["PROJECT_DIR"] = str(root)
         env["BUSINESS_DATE"] = business_date
+        pinned = dict(overrides or {})
+        env.update(pinned)
         for p in psets:
             path = Path(p)
-            pset.source(path if path.is_absolute() else root / path, env)
-        env.update(overrides or {})
+            pset.source(path if path.is_absolute() else root / path, env, pinned=pinned)
         return cls(business_date=business_date, project_dir=root, params=env)
 
     @classmethod
@@ -155,7 +165,7 @@ class BatchConfig:
         return cls.load(
             business_date=args.business_date,
             project_dir=args.project_dir,
-            psets=args.pset or DEFAULT_PSETS,
+            psets=(*DEFAULT_PSETS, *(args.pset or ())),
             overrides=dict(args.param or []),
         )
 
@@ -179,8 +189,8 @@ def build_parser(prog: str, description: str | None = None) -> argparse.Argument
     parser.add_argument(
         "--pset",
         action="append",
-        help="parameter set to source, relative to PROJECT_DIR (repeatable; "
-        f"default: {' '.join(DEFAULT_PSETS)})",
+        help="extra parameter set sourced after "
+        f"{' '.join(DEFAULT_PSETS)}, relative to PROJECT_DIR (repeatable)",
     )
     parser.add_argument(
         "--param",

@@ -43,6 +43,10 @@ COUNT_AGG = DecimalType(18, 0)
 QTY_AGG = DecimalType(18, 3)
 MONEY_AGG = DecimalType(18, 2)
 
+# Quantities are written without trailing zeros, the way the scale-less
+# ``decimal("<delim>")`` feeds carry them (``6``, ``1.235``).
+VARIABLE_SCALE_TYPES = (QTY, QTY_AGG)
+
 DATE_FORMAT = "yyyy-MM-dd"
 
 

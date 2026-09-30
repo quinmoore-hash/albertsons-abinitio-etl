@@ -68,9 +68,35 @@ def test_cli_overrides_and_spark_conf():
     assert conf["spark.albertsons.pos_input_path"].endswith("pos_sales_20260713.dat")
 
 
-def test_invalid_business_date():
+@pytest.mark.parametrize("value", ["2026-07-13", "2026071", "202607130", "20261301"])
+def test_invalid_business_date(value):
     with pytest.raises(ValueError):
-        BatchConfig.load("2026-07-13", project_dir=REPO_ROOT, environ={})
+        BatchConfig.load(value, project_dir=REPO_ROOT, environ={})
+
+
+def test_extra_pset_layers_on_defaults(tmp_path):
+    extra = tmp_path / "prod.pset"
+    extra.write_text("export DQ_MIN_ROWCOUNT=50\n")
+    args = build_parser("t").parse_args(
+        ["20260713", "--project-dir", str(REPO_ROOT), "--pset", str(extra)]
+    )
+    cfg = BatchConfig.from_args(args)
+    assert cfg.dq_min_rowcount == 50
+    assert cfg.dq_max_reject_pct == 2.0
+    assert cfg.serial_dir == REPO_ROOT / "data/serial"
+
+
+def test_param_override_feeds_derived_paths():
+    cfg = BatchConfig.load(
+        "20260713", project_dir=REPO_ROOT, overrides={"AB_DATA_DIR": "/other"}, environ={}
+    )
+    assert cfg.pos_input_path == "/other/in/pos_sales_20260713.dat"
+    assert cfg.summary_out_path == "/other/out/daily_sales_summary_20260713"
+    cfg = BatchConfig.load(
+        "20260713", project_dir=REPO_ROOT, overrides={"PROJECT_DIR": "/p2"}, environ={}
+    )
+    assert cfg.serial_dir == Path("/p2/data/serial")
+    assert cfg.dbc_dir == Path("/p2/dbc")
 
 
 def test_default_business_date_is_yesterday():

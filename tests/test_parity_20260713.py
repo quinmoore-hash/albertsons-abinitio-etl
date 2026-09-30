@@ -98,10 +98,12 @@ def test_dq_gate_on_sample(spark, batch_cfg, loaded):
     assert (result.summary_rows, result.reject_rows, str(result.reject_pct)) == (9, 1, "10.00")
 
 
-def test_outputs_are_single_part_files(batch_cfg, loaded):
-    for path in (
-        batch_cfg.summary_out_path,
-        batch_cfg.reject_out_path,
-        batch_cfg.inventory_out_path,
+def test_outputs_are_single_part_files_matching_expected_bytes(batch_cfg, loaded):
+    for path, expected in (
+        (batch_cfg.summary_out_path, f"daily_sales_summary_{BUSINESS_DATE}.dat"),
+        (batch_cfg.reject_out_path, f"reject_{BUSINESS_DATE}.dat"),
+        (batch_cfg.inventory_out_path, f"inventory_value_{BUSINESS_DATE}.dat"),
     ):
-        assert len(list(Path(path).glob("part-*"))) == 1
+        parts = list(Path(path).glob("part-*"))
+        assert len(parts) == 1
+        assert parts[0].read_bytes() == (EXPECTED_DIR / expected).read_bytes()

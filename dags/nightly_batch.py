@@ -18,6 +18,7 @@ Environment read at parse time:
 from __future__ import annotations
 
 import os
+import re
 import shlex
 import sys
 from datetime import datetime, timedelta
@@ -40,8 +41,8 @@ if PROJECT_DIR not in sys.path:
 
 from spark.common.notify import notify_failure  # noqa: E402
 
-SPARK_SUBMIT = os.environ.get("SPARK_SUBMIT", "spark-submit")
-SPARK_SUBMIT_ARGS = os.environ.get("SPARK_SUBMIT_ARGS", "")
+SPARK_SUBMIT = shlex.quote(os.environ.get("SPARK_SUBMIT", "spark-submit"))
+SPARK_SUBMIT_ARGS = shlex.join(shlex.split(os.environ.get("SPARK_SUBMIT_ARGS", "")))
 TIMEZONE = pendulum.timezone(os.environ.get("NIGHTLY_BATCH_TZ", "America/Boise"))
 
 ALERT_EMAIL = "store-data-ops@albertsons.com"
@@ -49,9 +50,12 @@ ALERT_CHANNEL = "#store-data-ops"
 
 
 def business_date(params: dict, logical_date: datetime | None, dag_run=None) -> str:
-    """Explicit ``business_date`` param, else the local day before the run."""
+    """Explicit ``business_date`` param (``YYYYMMDD``), else the local day before the run."""
     if params.get("business_date"):
-        return str(params["business_date"])
+        value = str(params["business_date"])
+        if not re.fullmatch(r"\d{8}", value):
+            raise ValueError(f"business_date must be YYYYMMDD, got {value!r}")
+        return value
     run_at = logical_date or getattr(dag_run, "run_after", None) or pendulum.now(TIMEZONE)
     local = pendulum.instance(run_at).in_timezone(TIMEZONE)
     return (local - timedelta(days=1)).strftime("%Y%m%d")

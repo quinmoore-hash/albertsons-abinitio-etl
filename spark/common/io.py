@@ -9,7 +9,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType
 
-from spark.schemas import RecordFormat
+from spark.schemas import VARIABLE_SCALE_TYPES, RecordFormat
 
 
 class RecordFormatError(ValueError):
@@ -61,8 +61,14 @@ def conform(df: DataFrame, record_format: RecordFormat) -> DataFrame:
 
 def write_delimited(df: DataFrame, path: str, record_format: RecordFormat) -> None:
     """Write ``df`` as a single delimited part file (Ab Initio serial OUTPUT FILE)."""
+    out = conform(df, record_format)
+    trimmed = {
+        f.name: F.regexp_replace(F.col(f.name).cast("string"), r"\.?0+$", "")
+        for f in record_format.schema.fields
+        if f.dataType in VARIABLE_SCALE_TYPES
+    }
     (
-        conform(df, record_format)
+        out.withColumns(trimmed)
         .coalesce(1)
         .write.mode("overwrite")
         .options(**record_format.csv_options())
